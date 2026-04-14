@@ -5,7 +5,7 @@ from typing import List # for returning a list of sales
 from app.database import get_db # function that gives us a DB session
 from models.sale import Sale # the Sale database model
 from schemas.sale import SaleCreate, SaleOut # input and output shapes
-from services.business_logic import create_sale_with_stock_update, create_sale_with_stock_update # core logic
+from services.business_logic import create_sale_with_stock_update # core logic
 
 router = APIRouter(prefix="/sales", tags=["Sales"]) # all routes here start with /sales
 

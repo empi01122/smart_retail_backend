@@ -13,8 +13,8 @@ class ProductCreate(BaseModel):  # data shape when USER creates a product
 class ProductUpdate(BaseModel):  # data shape when USER updates a product (all fields optional)
     name: Optional[str] = None # can update name or leave it
     description: Optional[str] = None # can update description or leave it
-    price: Optional[str] = None # can update price or leave it
-    stock: Optional[str] = None # can update stock or leave it
+    price: Optional[float] = None # can update price or leave it
+    stock: Optional[int] = None # can update stock or leave it
     category: Optional[str] = None # can update category or leave it
     image_url: Optional[str] = None # can update image or leave it
     
@@ -29,4 +29,4 @@ class ProductOut(BaseModel): # data shape when WE send product back to user
     created_at: datetime # timestamp of when product was added
     
 class Config: # pydantic configuration
-    from_attribute = True # allow reading data from SQLAlchemy model objects
+    from_attributes = True # allow reading data from SQLAlchemy model objects

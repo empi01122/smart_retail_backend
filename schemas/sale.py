@@ -13,4 +13,4 @@ class SaleOut(BaseModel): # data we send back after a sale is recorded
     items: List[SaleItemOut] # all the items in this sale
     
     class Config: # pydantic config
-        from_attribute = True # read data from SQLAlchemy objects
+        from_attributes = True # read data from SQLAlchemy objects
