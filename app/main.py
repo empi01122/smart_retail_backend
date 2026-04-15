@@ -4,7 +4,7 @@ from dotenv import load_dotenv # reads variables from the .env file
 import os # lets us read environment variables
 
 from app.database import engine, Base # engine = DB connection, Base = parent of all models
-from routes import product, sales, dashboard, settings # import all route files
+from routes import product, sales, dashboard, settings, users # import all route files
 
 load_dotenv(override=True) # load env file so APP_NAME and DATABASE_URL are available
 
@@ -28,6 +28,7 @@ app.include_router(product.router) # register all /products routes
 app.include_router(sales.router) # register all /sales routes
 app.include_router(dashboard.router) # register all /dashboard routes
 app.include_router(settings.router) # register all /settings routes
+app.include_router(users.router) # register all /users routes
 
 @app.get("/")  # GET / -> health check, confirms API is running
 def root():
