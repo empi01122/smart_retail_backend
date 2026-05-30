@@ -28,5 +28,5 @@ class ProductOut(BaseModel): # data shape when WE send product back to user
     image_url: Optional[str] # may or may not have image link
     created_at: datetime # timestamp of when product was added
     
-class Config: # pydantic configuration
-    from_attributes = True # allow reading data from SQLAlchemy model objects
+    class Config: # pydantic configuration
+        from_attributes = True # allow reading data from SQLAlchemy model objects

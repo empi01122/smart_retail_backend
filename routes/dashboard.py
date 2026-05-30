@@ -3,6 +3,8 @@ from sqlalchemy.orm import Session # type hint for DB session
 from sqlalchemy import func # SQL functions like count() and sum()
 
 from app.database import get_db # provides a fresh DB session
+from app.auth import get_current_user # Auth dependency
+from models.user import User # User model
 from models.sale import Sale # Sale model for querying sales 
 from models.sale_item import SaleItem # Sale model for querying what was sold
 from models.product import Product # Product model for stock info
@@ -11,7 +13,7 @@ from services.ai_service import generate_dashboard_insights # AI Insights Servic
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])  # all routes start with /dashboard
 
 @router.get("/summary") # GET /dashboard/summary -> key business numbers
-def get_dashboard_summary(db: Session = Depends(get_db)):
+def get_dashboard_summary(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     total_sales = db.query(func.count(Sale.id)).scalar() # count total number of sales
     total_revenue = db.query(func.sum(Sale.total_amount)).scalar() or 0.0 # sum all sale amounts, default 0
     total_products = db.query(func.count(Product.id)).scalar() # count total products
@@ -25,7 +27,7 @@ def get_dashboard_summary(db: Session = Depends(get_db)):
             }
     
 @router.get("/top-products") # GET /dashboard/top-products -> best selling products
-def get_top_products(db: Session = Depends(get_db)):
+def get_top_products(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     results = (
         db.query(
             Product.name, # get product name
@@ -45,10 +47,10 @@ def get_top_products(db: Session = Depends(get_db)):
     ]
 
 @router.get("/insights") # GET /dashboard/insights -> AI generated store insights
-def get_dashboard_insights_route(db: Session = Depends(get_db)):
+def get_dashboard_insights_route(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     # 1. Fetch exactly what the dashboard shows naturally
-    summary_data = get_dashboard_summary(db)
-    top_products_data = get_top_products(db)
+    summary_data = get_dashboard_summary(db, current_user)
+    top_products_data = get_top_products(db, current_user)
     
     # 2. Hand it directly to Gemini for formatting to english text
     ai_text = generate_dashboard_insights(summary_data, top_products_data)

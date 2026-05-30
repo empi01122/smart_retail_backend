@@ -9,13 +9,13 @@ class UserBase(BaseModel):
 
 # Used to create a user when receiving data from Clerk webhook or frontend sync
 class UserCreate(UserBase):
-    clerk_id: str
+    clerk_id: Optional[str] = None
     created_by_id: Optional[int] = None
 
 # Used for reading user data (sent back to frontend)
 class UserResponse(UserBase):
     id: int
-    clerk_id: str
+    clerk_id: Optional[str] = None
     created_by_id: Optional[int] = None
     
     class Config:

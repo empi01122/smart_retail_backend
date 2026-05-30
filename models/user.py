@@ -6,7 +6,7 @@ class User(Base):
     __tablename__ = "users"
     
     id = Column(Integer, primary_key=True, index=True)
-    clerk_id = Column(String, unique=True, index=True, nullable=False) # ID from Clerk Auth
+    clerk_id = Column(String, unique=True, index=True, nullable=True) # ID from Clerk Auth (nullable for pre-authorized invite)
     name = Column(String, nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
     role = Column(String, default="employee") # "admin" or "employee"

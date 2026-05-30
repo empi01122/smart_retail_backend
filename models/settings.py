@@ -8,8 +8,11 @@ class StoreSettings(Base):
     store_name = Column(String, default="Smart Retail Shop")
     logo_url = Column(String, nullable=True) # Nullable because they might not upload a logo
     
-    # We use a beautiful default Indigo (#4F46E5) instead of a robotic blue or black
+    # We use a beautiful default Indigo (#4F46E5) - representing trust, quality, and stability
     primary_theme_color = Column(String, default="#4F46E5") 
     
-    # A soft, elegant slate/off-white for secondary backgrounds or accents
+    # A soft, modern slate (#F8FAFC) - providing a clean, light, and open canvas
     secondary_theme_color = Column(String, default="#F8FAFC") 
+    
+    # An inviting warm Amber (#F59E0B) - representing friendly hospitality, hospitality, and warning highlights
+    accent_theme_color = Column(String, default="#F59E0B")

@@ -6,6 +6,7 @@ class StoreSettingsBase(BaseModel):
     logo_url: Optional[str] = None
     primary_theme_color: str
     secondary_theme_color: str
+    accent_theme_color: str
 
 class StoreSettingsUpdate(BaseModel):
     # Everything is optional in an update; they can update just the name or just the color
@@ -13,6 +14,7 @@ class StoreSettingsUpdate(BaseModel):
     logo_url: Optional[str] = None
     primary_theme_color: Optional[str] = None
     secondary_theme_color: Optional[str] = None
+    accent_theme_color: Optional[str] = None
 
 class StoreSettingsResponse(StoreSettingsBase):
     id: int
