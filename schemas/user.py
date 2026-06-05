@@ -6,6 +6,7 @@ class UserBase(BaseModel):
     name: str
     email: EmailStr
     role: str = "employee"
+    enterprise_id: Optional[int] = None
 
 # Used to create a user when receiving data from Clerk webhook or frontend sync
 class UserCreate(UserBase):
@@ -25,3 +26,4 @@ class UserResponse(UserBase):
 class UserUpdate(BaseModel):
     name: Optional[str] = None
     role: Optional[str] = None
+    enterprise_id: Optional[int] = None

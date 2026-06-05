@@ -7,6 +7,11 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from models.user import User
 
+# --- DEVELOPER BYPASS TOGGLE ---
+# Set this to True to bypass auth and run queries as the Mock Technician.
+# Set this to False to enforce real Clerk authentication checks.
+ENABLE_DEV_BYPASS = True
+
 # FastAPI utility to extract the `Bearer <token>` from the request header (auto_error=False for local debug bypass)
 security = HTTPBearer(auto_error=False)
 
@@ -16,20 +21,23 @@ jwks_client = PyJWKClient(f"{clerk_issuer}/.well-known/jwks.json") if clerk_issu
 
 def get_mock_admin(db: Session) -> User:
     """
-    Creates or retrieves a mock admin user for local development and testing.
+    Creates or retrieves a mock technician user for local development and testing.
     """
-    mock_admin = db.query(User).filter(User.role == "admin").first()
-    if not mock_admin:
-        mock_admin = User(
-            clerk_id="mock_local_admin_clerk_id",
-            name="Local Debug Admin",
-            email="admin@smartretail.com",
-            role="admin"
-        )
-        db.add(mock_admin)
-        db.commit()
-        db.refresh(mock_admin)
-    return mock_admin
+    mock_tech = db.query(User).filter(User.role == "technician").first()
+    if not mock_tech:
+        mock_tech = db.query(User).filter(User.clerk_id == "mock_local_admin_clerk_id").first()
+        if not mock_tech:
+            mock_tech = User(
+                clerk_id="mock_local_admin_clerk_id",
+                name="Local Debug Technician",
+                email="admin@smartretail.com",
+                role="technician",
+                enterprise_id=None
+            )
+            db.add(mock_tech)
+            db.commit()
+            db.refresh(mock_tech)
+    return mock_tech
 
 def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
@@ -40,7 +48,8 @@ def get_current_user(
     2. Dynamically fetches the active JSON Web Key Set (JWKS) from Clerk.
     3. Finds the user in our local `users` database securely.
     """
-    is_debug = os.getenv("DEBUG", "False") == "True"
+    # Enforce file-based bypass first, fallback to environment variable
+    is_debug = ENABLE_DEV_BYPASS or (os.getenv("DEBUG", "False") == "True")
 
     if credentials is None:
         if is_debug:
@@ -96,18 +105,19 @@ def get_current_user(
         # Check if this is the very first user registering (Bootstrapping)
         total_users = db.query(User).count()
         if total_users == 0:
-            # Automatically register the first user as the store owner (Admin)
+            # Automatically register the first user as the system technician
             user = User(
                 clerk_id=clerk_id,
                 name=name,
-                email=email or "owner@smartretail.com", # Fallback if email is missing in Clerk token
-                role="admin"
+                email=email or "admin@smartretail.com", # Fallback if email is missing in Clerk token
+                role="technician",
+                enterprise_id=None
             )
             db.add(user)
             db.commit()
             db.refresh(user)
         else:
-            # Option B: Check if the user was pre-authorized by an admin using their email
+            # Check if the user was pre-authorized by an admin using their email
             if email:
                 user = db.query(User).filter(User.email == email, User.clerk_id.is_(None)).first()
                 if user:
@@ -122,7 +132,7 @@ def get_current_user(
             if user is None:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN, 
-                    detail="Access Denied: You are not pre-authorized to use this application. Please contact your store administrator."
+                    detail="Access Denied: You are not pre-authorized to use this application. Please contact your administrator."
                 )
         
     return user
@@ -130,12 +140,25 @@ def get_current_user(
 
 def get_admin_user(current_user: User = Depends(get_current_user)):
     """
-    After we verify who they are (via `get_current_user`), this checks their Role!
-    Only Admins can pass this. Employees will be rejected.
+    Checks if the user has administrative/proprietor access.
+    Both proprietors and technicians can pass this check.
     """
-    if current_user.role != "admin":
+    if current_user.role not in ["technician", "proprietor"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, 
-            detail="Access Denied: Admin privileges required."
+            detail="Access Denied: Proprietor or Technician privileges required."
+        )
+    return current_user
+
+
+def get_technician_user(current_user: User = Depends(get_current_user)):
+    """
+    Checks if the user is the System Technician.
+    Only technicians can pass this check (e.g. for managing all enterprises).
+    """
+    if current_user.role != "technician":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, 
+            detail="Access Denied: Technician privileges required."
         )
     return current_user

@@ -4,7 +4,7 @@ from dotenv import load_dotenv # reads variables from the .env file
 import os # lets us read environment variables
 
 from app.database import engine, Base # engine = DB connection, Base = parent of all models
-from routes import product, sales, dashboard, settings, users # import all route files
+from routes import product, sales, dashboard, settings, users, enterprise # import all route files
 
 load_dotenv(override=True) # load env file so APP_NAME and DATABASE_URL are available
 
@@ -18,7 +18,13 @@ app = FastAPI ( # create the FastAPI application
 
 app.add_middleware(  # add CORS middleware so browser requests are allowed
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"], # allowed frontend URLs
+    allow_origins=[
+        "http://localhost:5173", 
+        "http://localhost:3000",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:3000"
+    ], # allowed frontend URLs
+    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)(:\d+)?",
     allow_credentials=True, # allows cookies and auth headers
     allow_methods=["*"], # allow all HTTP methods (GET, POST, PUT, DELETE)
     allow_headers=["*"], # allow all headers
@@ -29,6 +35,7 @@ app.include_router(sales.router) # register all /sales routes
 app.include_router(dashboard.router) # register all /dashboard routes
 app.include_router(settings.router) # register all /settings routes
 app.include_router(users.router) # register all /users routes
+app.include_router(enterprise.router) # register all /enterprises routes
 
 @app.get("/")  # GET / -> health check, confirms API is running
 def root():

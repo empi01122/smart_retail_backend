@@ -13,3 +13,7 @@ class SaleItem(Base): #one row = one product line inside a sale
     
     sale = relationship("Sale", back_populates="items") # navigate from item back to its sale
     product = relationship("Product") # navigate from item to its product
+
+    @property
+    def product_name(self):
+        return self.product.name if self.product else None

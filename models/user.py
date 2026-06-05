@@ -9,8 +9,10 @@ class User(Base):
     clerk_id = Column(String, unique=True, index=True, nullable=True) # ID from Clerk Auth (nullable for pre-authorized invite)
     name = Column(String, nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
-    role = Column(String, default="employee") # "admin" or "employee"
+    role = Column(String, default="employee") # "technician", "proprietor", or "employee"
     created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True) # self-referential
+    enterprise_id = Column(Integer, ForeignKey("enterprises.id"), nullable=True) # None for technician
     
-    # Relationship to see who created whom
+    # Relationships
+    enterprise = relationship("Enterprise")
     created_users = relationship("User", backref="created_by", remote_side=[id])

@@ -10,50 +10,84 @@ from models.sale_item import SaleItem # Sale model for querying what was sold
 from models.product import Product # Product model for stock info
 from services.ai_service import generate_dashboard_insights # AI Insights Service
 
+from typing import Optional
+
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])  # all routes start with /dashboard
 
 @router.get("/summary") # GET /dashboard/summary -> key business numbers
-def get_dashboard_summary(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    total_sales = db.query(func.count(Sale.id)).scalar() # count total number of sales
-    total_revenue = db.query(func.sum(Sale.total_amount)).scalar() or 0.0 # sum all sale amounts, default 0
-    total_products = db.query(func.count(Product.id)).scalar() # count total products
-    low_stock = db.query(Product).filter(Product.stock <= 5).count() # products with 5 fewer units left
+def get_dashboard_summary(
+    enterprise_id: Optional[int] = None,
+    db: Session = Depends(get_db), 
+    current_user: User = Depends(get_current_user)
+):
+    # Resolve enterprise scoping
+    target_ent_id = enterprise_id
+    if current_user.role != "technician":
+        target_ent_id = current_user.enterprise_id
+    elif target_ent_id is None:
+        # Default technician view to Enterprise 1 (Alpha) if not specified
+        target_ent_id = 1
+
+    total_sales = db.query(func.count(Sale.id)).filter(Sale.enterprise_id == target_ent_id).scalar()
+    total_revenue = db.query(func.sum(Sale.total_amount)).filter(
+        Sale.enterprise_id == target_ent_id,
+        Sale.payment_status == "completed" # Only count fully finalized sales
+    ).scalar() or 0.0
     
-    return { # return as a simple dictionary (FastAPI converts to JSON)
-            "total_sales": total_sales, # how many sales have been made
-            "total_revenue": round(total_revenue, 2), # total money earned, rounded to 2 decimals
-            "total_products": total_products, # how many products exist
-            "low_stock_alerts": low_stock # how many products are running low
-            }
+    total_products = db.query(func.count(Product.id)).filter(Product.enterprise_id == target_ent_id).scalar()
+    low_stock = db.query(Product).filter(
+        Product.enterprise_id == target_ent_id,
+        Product.stock <= 5
+    ).count()
+    
+    return {
+        "total_sales": total_sales,
+        "total_revenue": round(total_revenue, 2),
+        "total_products": total_products,
+        "low_stock_alerts": low_stock
+    }
     
 @router.get("/top-products") # GET /dashboard/top-products -> best selling products
-def get_top_products(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def get_top_products(
+    enterprise_id: Optional[int] = None,
+    db: Session = Depends(get_db), 
+    current_user: User = Depends(get_current_user)
+):
+    target_ent_id = enterprise_id
+    if current_user.role != "technician":
+        target_ent_id = current_user.enterprise_id
+    elif target_ent_id is None:
+        target_ent_id = 1
+
     results = (
         db.query(
-            Product.name, # get product name
-            func.sum(SaleItem.quantity).label("units_sold"), # total units sold per product
-            func.sum(SaleItem.quantity * SaleItem.unit_price).label("revenue") # total revenue per product
+            Product.name,
+            func.sum(SaleItem.quantity).label("units_sold"),
+            func.sum(SaleItem.quantity * SaleItem.unit_price).label("revenue")
         )
-        .join(SaleItem, SaleItem.product_id == Product.id) # join products with their sale items
-        .group_by(Product.id) # group results by product
-        .order_by(func.sum(SaleItem.quantity).desc()) # sort by most sold first
-        .limit(5) # only return top 5 products
+        .join(SaleItem, SaleItem.product_id == Product.id)
+        .filter(Product.enterprise_id == target_ent_id)
+        .group_by(Product.id)
+        .order_by(func.sum(SaleItem.quantity).desc())
+        .limit(5)
         .all()
     )
     
-    return [ # build and return a clean list
+    return [
         {"product": r.name, "units_sold": r.units_sold, "revenue": round(r.revenue, 2)}
-        for r in results # loop through each result row
+        for r in results
     ]
 
 @router.get("/insights") # GET /dashboard/insights -> AI generated store insights
-def get_dashboard_insights_route(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    # 1. Fetch exactly what the dashboard shows naturally
-    summary_data = get_dashboard_summary(db, current_user)
-    top_products_data = get_top_products(db, current_user)
+def get_dashboard_insights_route(
+    enterprise_id: Optional[int] = None,
+    db: Session = Depends(get_db), 
+    current_user: User = Depends(get_current_user)
+):
+    # Fetch scoped statistics
+    summary_data = get_dashboard_summary(enterprise_id, db, current_user)
+    top_products_data = get_top_products(enterprise_id, db, current_user)
     
-    # 2. Hand it directly to Gemini for formatting to english text
+    # Hand to Gemini for insights
     ai_text = generate_dashboard_insights(summary_data, top_products_data)
-    
-    # 3. Return the result back to the frontend
     return {"insights": ai_text}

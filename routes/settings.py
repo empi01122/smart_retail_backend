@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from typing import Optional
 from app.database import get_db
 from app.auth import get_current_user, get_admin_user # Auth dependencies
 from models.user import User # User model
-from models.settings import StoreSettings
+from models.enterprise import Enterprise
 from schemas.settings import StoreSettingsResponse, StoreSettingsUpdate
 
 router = APIRouter(prefix="/settings", tags=["Settings"])
@@ -48,50 +49,76 @@ CURATED_THEMES = {
 }
 
 @router.get("/", response_model=StoreSettingsResponse)
-def get_store_settings(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def get_store_settings(
+    enterprise_id: Optional[int] = None,
+    db: Session = Depends(get_db), 
+    current_user: User = Depends(get_current_user)
+):
     """
-    Fetches the global store settings. 
-    If no settings currently exist, it safely creates a default setup so the frontend never crashes.
+    Fetches the settings for the scoped enterprise. 
     """
-    settings = db.query(StoreSettings).first() # Grab the first (and only) settings row
-    
-    if not settings:
-        # Generate the default settings if they don't exist yet
-        settings = StoreSettings(
-            store_name="Smart Retail Shop",
-            primary_theme_color="#4F46E5", # Beautiful Trustworthy Indigo
-            secondary_theme_color="#F8FAFC", # Modern Clean Slate
-            accent_theme_color="#F59E0B" # Inviting Warm Amber
-        )
-        db.add(settings)
-        db.commit()
-        db.refresh(settings)
+    target_ent_id = enterprise_id
+    if current_user.role != "technician":
+        target_ent_id = current_user.enterprise_id
+    elif target_ent_id is None:
+        target_ent_id = 1
+        
+    ent = db.query(Enterprise).filter(Enterprise.id == target_ent_id).first()
+    if not ent:
+        raise HTTPException(status_code=404, detail="Enterprise settings not found.")
 
-    return settings
+    return StoreSettingsResponse(
+        id=ent.id,
+        store_name=ent.name,
+        logo_url=ent.logo_url,
+        primary_theme_color=ent.primary_theme_color,
+        secondary_theme_color=ent.secondary_theme_color,
+        accent_theme_color=ent.accent_theme_color
+    )
 
 @router.put("/", response_model=StoreSettingsResponse)
-def update_store_settings(settings_update: StoreSettingsUpdate, db: Session = Depends(get_db), admin: User = Depends(get_admin_user)):
+def update_store_settings(
+    settings_update: StoreSettingsUpdate, 
+    enterprise_id: Optional[int] = None,
+    db: Session = Depends(get_db), 
+    admin: User = Depends(get_admin_user)
+):
     """
-    Updates the global store branding. This allows the frontend to change colors/names dynamically.
+    Updates the visual branding for the enterprise.
     """
-    settings = db.query(StoreSettings).first()
-    
-    if not settings:
-        # In the rare event they try to update before fetching, create it first
-        settings = StoreSettings()
-        db.add(settings)
-        db.commit()
-        db.refresh(settings)
+    target_ent_id = enterprise_id
+    if admin.role != "technician":
+        target_ent_id = admin.enterprise_id
+    elif target_ent_id is None:
+        target_ent_id = 1
         
-    # Safely apply only the fields they provided in the request
-    update_data = settings_update.model_dump(exclude_unset=True) # Ignore blank/None fields
-    for key, value in update_data.items():
-        setattr(settings, key, value)
+    ent = db.query(Enterprise).filter(Enterprise.id == target_ent_id).first()
+    if not ent:
+        raise HTTPException(status_code=404, detail="Enterprise not found.")
+        
+    update_data = settings_update.model_dump(exclude_unset=True)
+    if "store_name" in update_data:
+        ent.name = update_data["store_name"]
+    if "logo_url" in update_data:
+        ent.logo_url = update_data["logo_url"]
+    if "primary_theme_color" in update_data:
+        ent.primary_theme_color = update_data["primary_theme_color"]
+    if "secondary_theme_color" in update_data:
+        ent.secondary_theme_color = update_data["secondary_theme_color"]
+    if "accent_theme_color" in update_data:
+        ent.accent_theme_color = update_data["accent_theme_color"]
         
     db.commit()
-    db.refresh(settings) # fetch the updated data from DB
+    db.refresh(ent)
     
-    return settings
+    return StoreSettingsResponse(
+        id=ent.id,
+        store_name=ent.name,
+        logo_url=ent.logo_url,
+        primary_theme_color=ent.primary_theme_color,
+        secondary_theme_color=ent.secondary_theme_color,
+        accent_theme_color=ent.accent_theme_color
+    )
 
 @router.get("/themes")
 def list_curated_themes(current_user: User = Depends(get_current_user)):
@@ -101,27 +128,44 @@ def list_curated_themes(current_user: User = Depends(get_current_user)):
     return [{"id": key, **value} for key, value in CURATED_THEMES.items()]
 
 @router.post("/themes/{theme_id}/apply", response_model=StoreSettingsResponse)
-def apply_curated_theme(theme_id: str, db: Session = Depends(get_db), admin: User = Depends(get_admin_user)):
+def apply_curated_theme(
+    theme_id: str, 
+    enterprise_id: Optional[int] = None,
+    db: Session = Depends(get_db), 
+    admin: User = Depends(get_admin_user)
+):
     """
-    Instantly applies a pre-defined, high-quality visual theme to your store branding.
+    Instantly applies a pre-defined theme to the enterprise's branding.
     """
     if theme_id not in CURATED_THEMES:
         raise HTTPException(status_code=400, detail="Invalid theme selection. Theme does not exist.")
         
-    theme = CURATED_THEMES[theme_id]
-    settings = db.query(StoreSettings).first()
-    
-    if not settings:
-        settings = StoreSettings()
-        db.add(settings)
+    target_ent_id = enterprise_id
+    if admin.role != "technician":
+        target_ent_id = admin.enterprise_id
+    elif target_ent_id is None:
+        target_ent_id = 1
         
-    settings.primary_theme_color = theme["primary_theme_color"]
-    settings.secondary_theme_color = theme["secondary_theme_color"]
-    settings.accent_theme_color = theme["accent_theme_color"]
+    theme = CURATED_THEMES[theme_id]
+    ent = db.query(Enterprise).filter(Enterprise.id == target_ent_id).first()
+    if not ent:
+        raise HTTPException(status_code=404, detail="Enterprise not found.")
+        
+    ent.primary_theme_color = theme["primary_theme_color"]
+    ent.secondary_theme_color = theme["secondary_theme_color"]
+    ent.accent_theme_color = theme["accent_theme_color"]
     
     db.commit()
-    db.refresh(settings)
-    return settings
+    db.refresh(ent)
+    
+    return StoreSettingsResponse(
+        id=ent.id,
+        store_name=ent.name,
+        logo_url=ent.logo_url,
+        primary_theme_color=ent.primary_theme_color,
+        secondary_theme_color=ent.secondary_theme_color,
+        accent_theme_color=ent.accent_theme_color
+    )
 
 # Curated, top-notch external theme generators to recommend to store owners
 EXTERNAL_INSPIRATION_TOOLS = [

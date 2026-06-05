@@ -9,14 +9,16 @@ class ProductCreate(BaseModel):  # data shape when USER creates a product
     stock: int = 0 # stock is optional, defaults to 0
     category: Optional[str] = None # category is optional
     image_url: Optional[str] = None # optional image link
-    
+    enterprise_id: Optional[int] = None # optional, backend can auto-fill
+
 class ProductUpdate(BaseModel):  # data shape when USER updates a product (all fields optional)
-    name: Optional[str] = None # can update name or leave it
-    description: Optional[str] = None # can update description or leave it
-    price: Optional[float] = None # can update price or leave it
-    stock: Optional[int] = None # can update stock or leave it
-    category: Optional[str] = None # can update category or leave it
-    image_url: Optional[str] = None # can update image or leave it
+    name: Optional[str] = None
+    description: Optional[str] = None
+    price: Optional[float] = None
+    stock: Optional[int] = None
+    category: Optional[str] = None
+    image_url: Optional[str] = None
+    enterprise_id: Optional[int] = None
     
 class ProductOut(BaseModel): # data shape when WE send product back to user
     id: int # include the database ID
@@ -26,6 +28,7 @@ class ProductOut(BaseModel): # data shape when WE send product back to user
     stock: int # current stock level
     category: Optional[str] # may or may not have category
     image_url: Optional[str] # may or may not have image link
+    enterprise_id: int
     created_at: datetime # timestamp of when product was added
     
     class Config: # pydantic configuration

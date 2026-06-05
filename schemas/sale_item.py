@@ -1,4 +1,5 @@
 from pydantic import BaseModel # BaseModel is what all schemas inherit from
+from typing import Optional
 
 class SaleItemCreate(BaseModel): # shape of data when CREATING a sale item (sent by user)
     product_id: int # user must provide which product
@@ -9,6 +10,7 @@ class SaleItemOut(BaseModel): # shape of data when RETURNING a sale item (sent t
     product_id: int # which product was sold
     quantity: int # how many were sold
     unit_price: float # price at time of sale
+    product_name: Optional[str] = None
     
     class Config: # pydantic config class
         from_attributes = True # allows reading data from SQLAlchemy model objects
