@@ -40,3 +40,8 @@ app.include_router(enterprise.router) # register all /enterprises routes
 @app.get("/")  # GET / -> health check, confirms API is running
 def root():
     return {"message": "Smart Retail System API is running✅"}   # simple confirmation responses
+
+@app.get("/favicon.ico", include_in_schema=False)  # suppress browser favicon 404 noise
+def favicon():
+    from fastapi.responses import Response
+    return Response(status_code=204)  # 204 No Content — tells browser there's no favicon

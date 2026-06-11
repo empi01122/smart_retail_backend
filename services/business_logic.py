@@ -40,7 +40,9 @@ def create_sale_with_stock_update(db: Session, sale_data: SaleCreate, enterprise
         items_to_create.append((product, item.quantity, product.price))
             
     # STEP 2 - configure payment status and delivery PIN for escrow
-    is_escrow = sale_data.payment_method == "mobile_money"
+    # Escrow only applies to online delivery orders — not walk-in customers.
+    # A walk-in paying MoMo gets their product immediately so no PIN is needed.
+    is_escrow = (sale_data.source == "online")
     payment_status = "paid_escrow" if is_escrow else "completed"
     delivery_pin = str(random.randint(1000, 9999)) if is_escrow else None
 
@@ -53,7 +55,13 @@ def create_sale_with_stock_update(db: Session, sale_data: SaleCreate, enterprise
         payment_method=sale_data.payment_method or "cash",
         delivery_pin=delivery_pin,
         enterprise_id=enterprise_id,
-        created_at=sale_data.created_at or datetime.now(timezone.utc)
+        created_at=sale_data.created_at or datetime.now(timezone.utc),
+        # Online / delivery fields
+        source=sale_data.source or "pos",
+        customer_name=sale_data.customer_name,
+        customer_phone=sale_data.customer_phone,
+        delivery_address=sale_data.delivery_address,
+        order_note=sale_data.order_note,
     )
     db.add(sale)
     db.flush() # Generate sale.id

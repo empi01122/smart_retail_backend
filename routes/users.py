@@ -5,6 +5,7 @@ from typing import List, Optional
 from app.database import get_db
 from app.auth import get_admin_user, get_current_user
 from models.user import User
+from models.enterprise import Enterprise
 from schemas.user import UserCreate, UserResponse, UserUpdate
 
 router = APIRouter(prefix="/users", tags=["Users"])
@@ -43,6 +44,26 @@ def create_or_sync_user(
         target_ent_id = admin.enterprise_id
     elif target_ent_id is None:
         raise HTTPException(status_code=400, detail="Technician must specify an enterprise_id for staff creation.")
+
+    # Fetch enterprise and enforce staff count limit if adding a cashier/employee
+    if user.role == "employee" and admin.role != "technician":
+        ent = db.query(Enterprise).filter(Enterprise.id == target_ent_id).first()
+        if not ent:
+            raise HTTPException(status_code=404, detail="Enterprise not found.")
+            
+        tier = ent.subscription_tier or "free"
+        current_staff_count = db.query(User).filter(User.enterprise_id == target_ent_id, User.role == "employee").count()
+        
+        if tier == "free" and current_staff_count >= 1:
+            raise HTTPException(
+                status_code=403,
+                detail="Staff limit reached: Free Trial accounts are limited to exactly 1 employee. Please upgrade to Pro or Ultra."
+            )
+        elif tier == "pro" and current_staff_count >= 2:
+            raise HTTPException(
+                status_code=403,
+                detail="Staff limit reached: Pro accounts are limited to exactly 2 employees. Upgrade to Ultra for unlimited employees."
+            )
 
     db_user = User(
         clerk_id=user.clerk_id,

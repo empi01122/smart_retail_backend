@@ -73,7 +73,10 @@ def get_store_settings(
         logo_url=ent.logo_url,
         primary_theme_color=ent.primary_theme_color,
         secondary_theme_color=ent.secondary_theme_color,
-        accent_theme_color=ent.accent_theme_color
+        accent_theme_color=ent.accent_theme_color,
+        subscription_tier=ent.subscription_tier or "free",
+        subscription_expires_at=ent.subscription_expires_at,
+        theme_changes_count=ent.theme_changes_count or 0
     )
 
 @router.put("/", response_model=StoreSettingsResponse)
@@ -117,7 +120,10 @@ def update_store_settings(
         logo_url=ent.logo_url,
         primary_theme_color=ent.primary_theme_color,
         secondary_theme_color=ent.secondary_theme_color,
-        accent_theme_color=ent.accent_theme_color
+        accent_theme_color=ent.accent_theme_color,
+        subscription_tier=ent.subscription_tier or "free",
+        subscription_expires_at=ent.subscription_expires_at,
+        theme_changes_count=ent.theme_changes_count or 0
     )
 
 @router.get("/themes")
@@ -151,6 +157,21 @@ def apply_curated_theme(
     if not ent:
         raise HTTPException(status_code=404, detail="Enterprise not found.")
         
+    if admin.role != "technician":
+        tier = ent.subscription_tier or "free"
+        if tier == "free":
+            raise HTTPException(
+                status_code=403,
+                detail="Applying curated branding themes is a premium feature. Please upgrade to Pro or Ultra."
+            )
+        elif tier == "pro":
+            if ent.theme_changes_count >= 1:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Pro subscription is limited to exactly 1 theme customization edit. Upgrade to Ultra for unlimited edits."
+                )
+            ent.theme_changes_count += 1
+        
     ent.primary_theme_color = theme["primary_theme_color"]
     ent.secondary_theme_color = theme["secondary_theme_color"]
     ent.accent_theme_color = theme["accent_theme_color"]
@@ -164,7 +185,10 @@ def apply_curated_theme(
         logo_url=ent.logo_url,
         primary_theme_color=ent.primary_theme_color,
         secondary_theme_color=ent.secondary_theme_color,
-        accent_theme_color=ent.accent_theme_color
+        accent_theme_color=ent.accent_theme_color,
+        subscription_tier=ent.subscription_tier or "free",
+        subscription_expires_at=ent.subscription_expires_at,
+        theme_changes_count=ent.theme_changes_count or 0
     )
 
 # Curated, top-notch external theme generators to recommend to store owners

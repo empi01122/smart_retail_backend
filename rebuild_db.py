@@ -5,7 +5,7 @@ import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from app.database import engine, Base, SessionLocal
-from models.enterprise import Enterprise
+from models.enterprise import Enterprise, Review
 from models.user import User
 from models.product import Product
 from models.sale import Sale
@@ -29,7 +29,10 @@ def rebuild_db():
             primary_theme_color="#4F46E5", # Indigo
             secondary_theme_color="#F8FAFC",
             accent_theme_color="#F59E0B",
-            is_premium=False
+            is_premium=False,
+            subscription_tier="free",
+            subscription_expires_at=None,
+            theme_changes_count=0
         )
         beta = Enterprise(
             id=2,
@@ -37,7 +40,10 @@ def rebuild_db():
             primary_theme_color="#059669", # Emerald
             secondary_theme_color="#F0FDF4",
             accent_theme_color="#D97706",
-            is_premium=True # Seed Beta as premium for testing
+            is_premium=False,
+            subscription_tier="free",
+            subscription_expires_at=None,
+            theme_changes_count=0
         )
         gamma = Enterprise(
             id=3,
@@ -45,7 +51,10 @@ def rebuild_db():
             primary_theme_color="#0F172A", # Midnight Dark
             secondary_theme_color="#1E293B",
             accent_theme_color="#06B6D4",
-            is_premium=True # Seed Gamma as premium for testing
+            is_premium=False,
+            subscription_tier="free",
+            subscription_expires_at=None,
+            theme_changes_count=0
         )
         
         db.add(alpha)
