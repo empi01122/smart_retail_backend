@@ -25,7 +25,7 @@ def get_all_sales(
 ): # db + auth injected automatically
     # Lazy auto-release: complete any escrow transactions older than 2 days (48 hours)
     from datetime import datetime, timedelta, timezone
-    cutoff = datetime.now(timezone.utc) - timedelta(seconds=60)
+    cutoff = datetime.now(timezone.utc) - timedelta(minutes=10)
     expired_sales = db.query(Sale).filter(
         Sale.payment_status == "paid_escrow",
         Sale.created_at < cutoff

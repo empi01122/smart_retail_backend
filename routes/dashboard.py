@@ -40,11 +40,48 @@ def get_dashboard_summary(
         Product.stock <= 5
     ).count()
     
+    # 7-day Daily Revenue calculation
+    from datetime import date, timedelta
+    from sqlalchemy import Date, cast
+    
+    today = date.today()
+    start_date = today - timedelta(days=6)
+    
+    sales_by_day = (
+        db.query(
+            cast(Sale.created_at, Date).label("sale_date"),
+            func.sum(Sale.total_amount).label("revenue")
+        )
+        .filter(
+            Sale.enterprise_id == target_ent_id,
+            Sale.payment_status == "completed",
+            cast(Sale.created_at, Date) >= start_date
+        )
+        .group_by(cast(Sale.created_at, Date))
+        .all()
+    )
+    
+    revenue_map = {r.sale_date: r.revenue for r in sales_by_day if r.sale_date}
+    
+    daily_revenue = []
+    days_of_week = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    
+    for i in range(7):
+        current_date = start_date + timedelta(days=i)
+        day_name = days_of_week[current_date.weekday()]
+        rev = revenue_map.get(current_date, 0.0)
+        daily_revenue.append({
+            "date": current_date.isoformat(),
+            "day": day_name,
+            "revenue": round(float(rev or 0.0), 2)
+        })
+    
     return {
         "total_sales": total_sales,
         "total_revenue": round(total_revenue, 2),
         "total_products": total_products,
-        "low_stock_alerts": low_stock
+        "low_stock_alerts": low_stock,
+        "daily_revenue": daily_revenue
     }
     
 @router.get("/top-products") # GET /dashboard/top-products -> best selling products

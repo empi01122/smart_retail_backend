@@ -265,7 +265,7 @@ def get_admin_user(current_user: User = Depends(get_current_user)):
     Checks if the user has administrative/proprietor access.
     Both proprietors and technicians can pass this check.
     """
-    if current_user.role not in ["technician", "proprietor"]:
+    if current_user.role not in ["technician", "proprietor", "admin", "owner"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, 
             detail="Access Denied: Proprietor or Technician privileges required."
