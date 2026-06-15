@@ -11,6 +11,8 @@ class SaleItemOut(BaseModel): # shape of data when RETURNING a sale item (sent t
     quantity: int # how many were sold
     unit_price: float # price at time of sale
     product_name: Optional[str] = None
+    image_url: Optional[str] = None
+    category: Optional[str] = None
     
     class Config: # pydantic config class
         from_attributes = True # allows reading data from SQLAlchemy model objects

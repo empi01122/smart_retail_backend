@@ -10,6 +10,18 @@ from schemas.product import ProductCreate, ProductUpdate, ProductOut # input/out
 
 router = APIRouter(prefix="/products", tags=["Products"]) # all routes here start with /products
 
+def get_product_manager_user(current_user: User = Depends(get_current_user)):
+    """
+    Checks if the user has catalog management access.
+    Proprietors, technicians, and employees (cashiers) can pass this check.
+    """
+    if current_user.role not in ["technician", "proprietor", "admin", "owner", "employee"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access Denied: Product management privileges required."
+        )
+    return current_user
+
 @router.get("/public", response_model=List[ProductOut])
 def get_public_products(
     enterprise_id: int,
@@ -58,7 +70,7 @@ def create_product(
     product: ProductCreate, 
     enterprise_id: Optional[int] = None,
     db: Session = Depends(get_db), 
-    admin: User = Depends(get_admin_user)
+    admin: User = Depends(get_product_manager_user)
 ): # receive product data + admin auth
     target_ent_id = product.enterprise_id or enterprise_id
     if admin.role != "technician":
@@ -88,7 +100,7 @@ def update_product(
     product_id: int, 
     updates: ProductUpdate, 
     db: Session = Depends(get_db), 
-    admin: User = Depends(get_admin_user)
+    admin: User = Depends(get_product_manager_user)
 ):
     product = db.query(Product).filter(Product.id == product_id).first()  # find the product
     if not product: # if not found
@@ -114,7 +126,7 @@ def update_product(
 def delete_product(
     product_id: int, 
     db: Session = Depends(get_db), 
-    admin: User = Depends(get_admin_user)
+    admin: User = Depends(get_product_manager_user)
 ):
     product = db.query(Product).filter(Product.id == product_id).first() # find the product
     if not product: # if not found

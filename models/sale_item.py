@@ -17,3 +17,11 @@ class SaleItem(Base): #one row = one product line inside a sale
     @property
     def product_name(self):
         return self.product.name if self.product else None
+
+    @property
+    def image_url(self):
+        return self.product.image_url if self.product else None
+
+    @property
+    def category(self):
+        return self.product.category if self.product else None
