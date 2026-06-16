@@ -42,7 +42,7 @@ app.include_router(settings.router) # register all /settings routes
 app.include_router(users.router) # register all /users routes
 app.include_router(enterprise.router) # register all /enterprises routes
 
-@app.get("/")  # GET / -> health check, confirms API is running
+@app.api_route("/", methods=["GET", "HEAD"])  # GET / or HEAD / -> health check, confirms API is running
 def root():
     return {"message": "Smart Retail System API is running✅"}   # simple confirmation responses
 
