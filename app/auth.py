@@ -16,7 +16,7 @@ def fetch_clerk_user_email_and_name(clerk_id: str) -> tuple[str | None, str | No
     """
     clerk_secret = os.getenv("CLERK_SECRET_KEY")
     if not clerk_secret:
-        print("[AUTH] ⚠️ CLERK_SECRET_KEY is not set in .env")
+        print("[AUTH] [WARN] CLERK_SECRET_KEY is not set in .env")
         return None, None
     try:
         req = urllib.request.Request(
@@ -45,7 +45,7 @@ def fetch_clerk_user_email_and_name(clerk_id: str) -> tuple[str | None, str | No
             name = f"{first_name} {last_name}".strip() or "Staff Member"
             return email, name
     except Exception as e:
-        print(f"[AUTH] ❌ Error fetching user from Clerk API: {e}")
+        print(f"[AUTH] [ERROR] Error fetching user from Clerk API: {e}")
         return None, None
 
 
@@ -94,7 +94,7 @@ def get_current_user(
 
     # STEP 1: Check if Authorization header arrived at all
     if credentials is None:
-        print("[AUTH] ❌ No Authorization header received in request")
+        print("[AUTH] [ERROR] No Authorization header received in request")
         if is_debug:
             return get_mock_admin(db)
         raise HTTPException(
@@ -103,16 +103,16 @@ def get_current_user(
         )
 
     token = credentials.credentials
-    print(f"[AUTH] ✅ Token received — length={len(token)}, starts with: {token[:30]}...")
+    print(f"[AUTH] [OK] Token received - length={len(token)}, starts with: {token[:30]}...")
 
     # STEP 2: Bypass check for dev mode
     if is_debug and (token.lower() in ["bypass", "debug", "true", "false", "admin", "test", "null", "undefined"] or len(token) < 20):
-        print("[AUTH] 🔓 Dev bypass token detected — returning mock admin")
+        print("[AUTH] [BYPASS] Dev bypass token detected - returning mock admin")
         return get_mock_admin(db)
 
     # STEP 3: Ensure Clerk is configured
     if not clerk_issuer or not jwks_client:
-        print("[AUTH] ❌ CLERK_ISSUER is not set in .env!")
+        print("[AUTH] [ERROR] CLERK_ISSUER is not set in .env!")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Server configuration error: Missing CLERK_ISSUER"
@@ -120,9 +120,9 @@ def get_current_user(
 
     # STEP 4: Validate JWT
     try:
-        print(f"[AUTH] 🔑 Fetching signing key from Clerk JWKS...")
+        print(f"[AUTH] [KEY] Fetching signing key from Clerk JWKS...")
         signing_key = jwks_client.get_signing_key_from_jwt(token)
-        print(f"[AUTH] 🔑 Signing key found. Decoding token...")
+        print(f"[AUTH] [KEY] Signing key found. Decoding token...")
         payload = jwt.decode(
             token,
             signing_key.key,
@@ -138,43 +138,43 @@ def get_current_user(
 
         # Fallback to Clerk API if email is missing from the JWT payload
         if not email and clerk_id:
-            print(f"[AUTH] 🔍 Email missing from JWT payload. Querying Clerk Backend API for clerk_id={clerk_id}...")
+            print(f"[AUTH] [SEARCH] Email missing from JWT payload. Querying Clerk Backend API for clerk_id={clerk_id}...")
             clerk_email, clerk_name = fetch_clerk_user_email_and_name(clerk_id)
             if clerk_email:
                 email = clerk_email
-                print(f"[AUTH] 🔍 Retried Clerk API — Found email: {email}")
+                print(f"[AUTH] [SEARCH] Retried Clerk API - Found email: {email}")
             if clerk_name and (not name or name == "Staff Member"):
                 name = clerk_name
 
-        print(f"[AUTH] ✅ Token valid — sub={clerk_id} | email={email} | iss={payload.get('iss')}")
+        print(f"[AUTH] [OK] Token valid - sub={clerk_id} | email={email} | iss={payload.get('iss')}")
 
         if clerk_id is None:
-            print("[AUTH] ❌ Token has no 'sub' claim!")
+            print("[AUTH] [ERROR] Token has no 'sub' claim!")
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token: missing sub claim")
 
     except HTTPException:
         raise  # Never swallow our own HTTPExceptions
 
     except jwt.ExpiredSignatureError as e:
-        print(f"[AUTH] ❌ Token EXPIRED: {e}")
+        print(f"[AUTH] [ERROR] Token EXPIRED: {e}")
         if is_debug:
             return get_mock_admin(db)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token has expired — please sign in again")
 
     except jwt.InvalidTokenError as e:
-        print(f"[AUTH] ❌ Invalid JWT token: {type(e).__name__}: {e}")
+        print(f"[AUTH] [ERROR] Invalid JWT token: {type(e).__name__}: {e}")
         if is_debug:
             return get_mock_admin(db)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=f"Invalid token: {e}")
 
     except Exception as e:
-        print(f"[AUTH] ❌ Unexpected JWT error: {type(e).__name__}: {e}")
+        print(f"[AUTH] [ERROR] Unexpected JWT error: {type(e).__name__}: {e}")
         if is_debug:
             return get_mock_admin(db)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=f"Token verification failed: {type(e).__name__}: {e}")
 
     # STEP 5: Look up user in our DB
-    print(f"[AUTH] 🔍 Looking up user in DB with clerk_id={clerk_id}...")
+    print(f"[AUTH] [SEARCH] Looking up user in DB with clerk_id={clerk_id}...")
     user = db.query(User).filter(User.clerk_id == clerk_id).first()
 
     # Check for hardcoded/env-configured technician email
@@ -194,10 +194,10 @@ def get_current_user(
                     user.name = name
                 db.commit()
                 db.refresh(user)
-                print(f"[AUTH] ✅ Linked technician email {email} to technician user record.")
+                print(f"[AUTH] [OK] Linked technician email {email} to technician user record.")
             else:
                 # Create a brand new technician user
-                print(f"[AUTH] 🚀 Auto-registering configured technician: {email}")
+                print(f"[AUTH] [LAUNCH] Auto-registering configured technician: {email}")
                 user = User(
                     clerk_id=clerk_id,
                     name=name,
@@ -208,14 +208,14 @@ def get_current_user(
                 db.add(user)
                 db.commit()
                 db.refresh(user)
-                print(f"[AUTH] ✅ Configured Technician profile created with ID={user.id}")
+                print(f"[AUTH] [OK] Configured Technician profile created with ID={user.id}")
         else:
             total_users = db.query(User).count()
             print(f"[AUTH] User not found by clerk_id. Total users in DB: {total_users}")
 
             if total_users == 0 and not technician_email:
                 # First ever login fallback — auto-register as system technician
-                print(f"[AUTH] 🚀 First user! Auto-registering {email} as technician...")
+                print(f"[AUTH] [LAUNCH] First user! Auto-registering {email} as technician...")
                 user = User(
                     clerk_id=clerk_id,
                     name=name,
@@ -226,11 +226,11 @@ def get_current_user(
                 db.add(user)
                 db.commit()
                 db.refresh(user)
-                print(f"[AUTH] ✅ Technician created with ID={user.id}")
+                print(f"[AUTH] [OK] Technician created with ID={user.id}")
             else:
                 # Check if pre-authorized by email
                 if email:
-                    print(f"[AUTH] 🔍 Checking pre-authorization by email: {email}")
+                    print(f"[AUTH] [SEARCH] Checking pre-authorization by email: {email}")
                     user = db.query(User).filter(User.email == email, User.clerk_id.is_(None)).first()
                     if user:
                         user.clerk_id = clerk_id
@@ -238,10 +238,10 @@ def get_current_user(
                             user.name = name
                         db.commit()
                         db.refresh(user)
-                        print(f"[AUTH] ✅ Linked Clerk ID to pre-authorized user ID={user.id}")
+                        print(f"[AUTH] [OK] Linked Clerk ID to pre-authorized user ID={user.id}")
 
                 if user is None:
-                    print(f"[AUTH] ❌ Access denied — {email} is not pre-authorized")
+                    print(f"[AUTH] [ERROR] Access denied - {email} is not pre-authorized")
                     raise HTTPException(
                         status_code=status.HTTP_403_FORBIDDEN,
                         detail="Access Denied: You are not pre-authorized. Contact your administrator."
@@ -253,9 +253,9 @@ def get_current_user(
             user.enterprise_id = None
             db.commit()
             db.refresh(user)
-            print(f"[AUTH] ✅ Updated existing user {email} to technician role.")
+            print(f"[AUTH] [OK] Updated existing user {email} to technician role.")
 
-    print(f"[AUTH] ✅ Auth complete — user ID={user.id}, role={user.role}, email={user.email}")
+    print(f"[AUTH] [OK] Auth complete - user ID={user.id}, role={user.role}, email={user.email}")
     return user
 
 
