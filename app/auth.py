@@ -52,7 +52,10 @@ def fetch_clerk_user_email_and_name(clerk_id: str) -> tuple[str | None, str | No
 # --- DEVELOPER BYPASS TOGGLE ---
 # Set this to True to bypass auth and run queries as the Mock Technician.
 # Set this to False to enforce real Clerk authentication checks.
-ENABLE_DEV_BYPASS = True
+# Defaults to True locally, but auto-disables in production (Render/Vercel)
+ENABLE_DEV_BYPASS = os.getenv("ENABLE_DEV_BYPASS", "True").lower() in ["true", "1"]
+if os.getenv("RENDER") or os.getenv("PORT") or os.getenv("VERCEL"):
+    ENABLE_DEV_BYPASS = False
 
 # FastAPI utility to extract the `Bearer <token>` from the request header (auto_error=False for local debug bypass)
 security = HTTPBearer(auto_error=False)
