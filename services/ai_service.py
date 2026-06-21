@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 from google import genai
 
 def generate_dashboard_insights(summary_data: dict, top_products: list) -> str:
@@ -14,9 +15,13 @@ def generate_dashboard_insights(summary_data: dict, top_products: list) -> str:
     # Initialize the new Google GenAI client
     client = genai.Client(api_key=api_key)
     
+    current_date = datetime.now()
+    current_date_str = current_date.strftime("%A, %B %d, %Y")
+    
     # Construct the data context payload
     data_context = f"""
     ### Current Store Data
+    - Current Day of Evaluation: {current_date_str}
     - Total Sales Count: {summary_data.get('total_sales', 0)}
     - Total Revenue Generated: {summary_data.get('total_revenue', 0)} FCFA
     - Total Unique Products in Store: {summary_data.get('total_products', 0)}
@@ -27,10 +32,15 @@ def generate_dashboard_insights(summary_data: dict, top_products: list) -> str:
     """
 
     # Tell the AI how to behave and what to output
-    system_instruction = """
+    system_instruction = f"""
     You are a professional retail analytics assistant for a store dashboard. 
     Analyze the provided data and write a concise, insightful, and mature summary of the store's performance. 
     Maintain a professional yet conversational tone, suitable for adult business managers. Avoid overly enthusiastic or informal language, but do not sound robotic.
+
+    CRITICAL DATE EVALUATION RULES:
+    - The current day of evaluation is {current_date_str}.
+    - Restrict your performance assessment strictly to the period up to the current day.
+    - Do not make statements or draw conclusions about future days (e.g., if today is Friday, do not conclude there were no sales on Saturday or Sunday).
 
     CRITICAL SECURITY GUARDRAILS:
     - You MUST ONLY discuss retail analytics, store management, and the provided dashboard data.
