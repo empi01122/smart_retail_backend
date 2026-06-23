@@ -6,6 +6,14 @@ import os # lets us read environment variables
 from app.database import engine, Base # engine = DB connection, Base = parent of all models
 from routes import product, sales, dashboard, settings, users, enterprise # import all route files
 
+# Explicitly import all models to register them in the SQLAlchemy metadata registry before mapping
+from models.user import User
+from models.enterprise import Enterprise, Review
+from models.product import Product
+from models.sale import Sale
+from models.sale_item import SaleItem
+from models.settings import Settings
+
 load_dotenv(override=True) # load env file so APP_NAME and DATABASE_URL are available
 
 Base.metadata.create_all(bind=engine) # automaticaly create all DB tables if they don't exist
