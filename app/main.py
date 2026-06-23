@@ -12,7 +12,7 @@ from models.enterprise import Enterprise, Review
 from models.product import Product
 from models.sale import Sale
 from models.sale_item import SaleItem
-from models.settings import Settings
+from models.settings import StoreSettings
 
 load_dotenv(override=True) # load env file so APP_NAME and DATABASE_URL are available
 
